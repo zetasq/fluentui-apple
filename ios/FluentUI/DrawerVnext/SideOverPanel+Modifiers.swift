@@ -15,9 +15,9 @@ extension SlideOverPanel {
                               content: content,
                               backgroundLayerOpacity: backgroundLayerOpacity,
                               direction: direction,
-                              isOpen: $isOpen,
-                              preferredContentOffset: $preferredContentOffset,
-                              tokens: tokens)
+                              tokens: tokens,
+                              transitionState: $transitionState,
+                              percentTransition: $percentTransition)
     }
 
     /// Update or replace content on panel
@@ -29,9 +29,9 @@ extension SlideOverPanel {
                               content: drawerContent,
                               backgroundLayerOpacity: backgroundLayerOpacity,
                               direction: direction,
-                              isOpen: $isOpen,
-                              preferredContentOffset: $preferredContentOffset,
-                              tokens: tokens)
+                              tokens: tokens,
+                              transitionState: $transitionState,
+                              percentTransition: $percentTransition)
     }
 
     /// Add action or callback to be executed when background view is Tapped
@@ -43,9 +43,9 @@ extension SlideOverPanel {
                               content: content,
                               backgroundLayerOpacity: backgroundLayerOpacity,
                               direction: direction,
-                              isOpen: $isOpen,
-                              preferredContentOffset: $preferredContentOffset,
-                              tokens: tokens)
+                              tokens: tokens,
+                              transitionState: $transitionState,
+                              percentTransition: $percentTransition)
     }
 
     /// Add opacity to background view
@@ -57,9 +57,9 @@ extension SlideOverPanel {
                               content: content,
                               backgroundLayerOpacity: opacity,
                               direction: direction,
-                              isOpen: $isOpen,
-                              preferredContentOffset: $preferredContentOffset,
-                              tokens: tokens)
+                              tokens: tokens,
+                              transitionState: $transitionState,
+                              percentTransition: $percentTransition)
     }
 
     /// Change opening direction for slideout
@@ -71,8 +71,8 @@ extension SlideOverPanel {
                               content: content,
                               backgroundLayerOpacity: backgroundLayerOpacity,
                               direction: slideOutDirection,
-                              isOpen: $isOpen,
-                              preferredContentOffset: $preferredContentOffset,
-                              tokens: tokens)
+                              tokens: tokens,
+                              transitionState: $transitionState,
+                              percentTransition: $percentTransition)
     }
 }

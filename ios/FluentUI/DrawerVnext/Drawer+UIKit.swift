@@ -39,7 +39,12 @@ extension DrawerVnext: UIViewControllerTransitioningDelegate, UIViewControllerAn
             drawerView.frame = UIScreen.main.bounds
             DispatchQueue.main.asyncAfter(deadline: .now() + state.animationDuration) { [weak self] in
                 if let strongSelf = self {
-                    strongSelf.state.isExpanded = isPresentingDrawer
+                    if strongSelf.state.presentingGesture != nil && isPresentingDrawer {
+                        /// defer state on gesture
+                        strongSelf.state.isExpanded = false
+                    } else {
+                        strongSelf.state.isExpanded = isPresentingDrawer
+                    }
                 }
                 transitionContext.completeTransition(true)
             }
@@ -77,8 +82,12 @@ open class DrawerVnext: UIHostingController<AnyView>, FluentUIWindowProvider {
         return self.view.window
     }
 
+    /// set this delegate to recieve updates when drawer's state changes
+    /// @see `DrawerVnextControllerDelegate`
     public weak var delegate: DrawerVnextControllerDelegate?
 
+    /// Drawer state, use this to mutate or update drawer functionality
+    /// @see `DrawerState`
     @objc open var state: DrawerState {
         return self.drawer.state
     }

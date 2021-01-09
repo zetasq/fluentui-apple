@@ -5,40 +5,50 @@
 
 import SwiftUI
 
-@objc enum SlideOverDirection: Int, CaseIterable {
+enum SlideOverDirection: Int, CaseIterable {
     /// Drawer animated right from a left base
     case left
     /// Drawer animated right from a right base
     case right
 }
 
+enum SlideOverTransitionState: Int, CaseIterable {
+    /// panel is expanded and content view is available for interaction
+    case expanded
+    /// panel is collapsed and background view is available for interaction
+    case collapsed
+    /// panel is currently being dragged
+    case inTransisiton
+}
+
 /// SlidePanel in the drawer's horizontal layer that expands and collapsed on x axis of the drawer.
 /// `View` consist of content view placed on top on panel and transparent background layer
 struct SlideOverPanel<Content: View>: View {
 
-    // Width occupied by content and spacer combined
+    /// Width occupied by content and spacer combined
     internal var slideOutPanelWidth: CGFloat = UIScreen.main.bounds.width
 
-    // action executed with background transperent view is tapped
+    /// action executed with background transperent view is tapped
     internal var actionOnBackgroundTap: (() -> Void)?
 
-    // content view is visible when slide over panel is expanded
+    /// content view is visible when slide over panel is expanded
     internal var content: Content
 
-    // opacity used to dim the transparent layer
+    /// opacity used to dim the transparent layer
     internal var backgroundLayerOpacity: Double = 0.0
 
-    // slide out direction
+    /// slide out direction
     internal var direction: SlideOverDirection = .left
 
-    // content is visible when set to `true`
-    @Binding internal var isOpen: Bool
+    /// configure the apperance of drawer
+    @ObservedObject public var tokens = DrawerTokens()
 
-    // width content view needs to be occupied
-    @Binding internal var preferredContentOffset: CGFloat?
+    /// interactive state of panel
+    @Binding internal var transitionState: SlideOverTransitionState
 
-    // configure the apperance of drawer
-    @ObservedObject public var tokens: DrawerTokens
+    /// only effective when panel is in transition, valid range [0,1]
+    /// @see `SlideOverTransitionState`
+    @Binding public var percentTransition: Double?
 
     private let contentWidthSizeRatio: CGFloat = 0.9
 
@@ -51,7 +61,7 @@ struct SlideOverPanel<Content: View>: View {
 
             content
                 .frame(width: contentWidth())
-                .shadow(color: tokens.shadowColor.opacity(isOpen ? tokens.shadowOpacity : 0),
+                .shadow(color: tokens.shadowColor.opacity(resolvedShadowOpacity()),
                         radius: tokens.shadowBlur,
                         x: tokens.shadowDepthX,
                         y: tokens.shadowDepthY)
@@ -62,17 +72,39 @@ struct SlideOverPanel<Content: View>: View {
                     .onTapGesture (perform: actionOnBackgroundTap ?? {})
             }
         }
-        .background(isOpen ? tokens.backgroundDimmedColor.opacity(backgroundLayerOpacity) : tokens.backgroundClearColor)
+        .background(transitionState == .collapsed ? tokens.backgroundClearColor : tokens.backgroundDimmedColor.opacity(backgroundLayerOpacity))
+    }
+
+    public func contentWidth() -> CGFloat {
+        return slideOutPanelWidth * contentWidthSizeRatio
+    }
+
+    private func resolvedShadowOpacity() -> Double {
+        switch transitionState {
+        case .collapsed:
+            return 0
+        case .expanded:
+            return tokens.shadowOpacity
+        case .inTransisiton:
+            if let percent = percentTransition {
+                return tokens.shadowOpacity * percent
+            }
+        }
+        return 0
     }
 
     private func resolvedContentOffset() -> CGFloat {
-        // override offset if required
-        if let preferredContentWidth = preferredContentOffset {
-            // parent view wants to take over primarily to conform user drag gesture
-            return preferredContentWidth
+
+        var offset: CGFloat
+        switch transitionState {
+        case .collapsed:
+            offset = collapsedContentOffset()
+        case .expanded:
+            offset = expandedContentOffset()
+        case .inTransisiton:
+            offset = percentTransistionOffset()
         }
 
-        let offset = isOpen ? expandedConentOffset() : collapsedContentOffset()
         if direction == .left {
             return -offset
         } else {
@@ -80,15 +112,22 @@ struct SlideOverPanel<Content: View>: View {
         }
     }
 
-    private func expandedConentOffset() -> CGFloat {
+    private func percentTransistionOffset() -> CGFloat {
+        // override offset if required
+        if let percentDriveTransition = percentTransition {
+            // parent view wants to take over primarily to conform user drag gesture
+            if percentDriveTransition >= 0 && percentDriveTransition <= 1 {
+                return expandedContentOffset() + collapsedContentOffset() * CGFloat(1 - percentDriveTransition)
+            }
+        }
+        return CGFloat.zero
+    }
+
+    private func expandedContentOffset() -> CGFloat {
         return CGSize.zero.width
     }
 
     private func collapsedContentOffset() -> CGFloat {
-        return slideOutPanelWidth * contentWidthSizeRatio
-    }
-
-    private func contentWidth() -> CGFloat {
         return slideOutPanelWidth * contentWidthSizeRatio
     }
 }
@@ -117,8 +156,8 @@ struct SlideOverPanelLeft_Previews: PreviewProvider {
                 content: MockContent(),
                 backgroundLayerOpacity: 0.5,
                 direction: .left,
-                isOpen: Binding.constant(true),
-                preferredContentOffset: Binding.constant(nil),
+                transitionState: Binding.constant(SlideOverTransitionState.expanded),
+                percentTransition: Binding.constant(0),
                 tokens: DrawerTokens())
         }
     }
@@ -134,9 +173,26 @@ struct SlideOverPanelRight_Previews: PreviewProvider {
                 content: MockContent(),
                 backgroundLayerOpacity: 0.5,
                 direction: .right,
-                isOpen: Binding.constant(true),
-                preferredContentOffset: Binding.constant(nil),
+                transitionState: Binding.constant(SlideOverTransitionState.expanded),
+                percentTransition: Binding.constant(0),
                 tokens: DrawerTokens())
+        }
+    }
+}
+
+struct SlideOverPanelInTransition_Previews: PreviewProvider {
+    static var previews: some View {
+        ZStack {
+            MockBackgroundView()
+            SlideOverPanel<MockContent>(
+                slideOutPanelWidth: UIScreen.main.bounds.width,
+                actionOnBackgroundTap: nil,
+                content: MockContent(),
+                backgroundLayerOpacity: 0.5,
+                direction: .left,
+                transitionState: Binding.constant(SlideOverTransitionState.inTransisiton),
+                percentTransition: Binding.constant(0.4),
+                tokens: DrawerTokens()))
         }
     }
 }
@@ -151,8 +207,8 @@ struct SlideOverPanelCollapsed_Previews: PreviewProvider {
                 content: MockContent(),
                 backgroundLayerOpacity: 0.5,
                 direction: .left,
-                isOpen: Binding.constant(false),
-                preferredContentOffset: Binding.constant(nil),
+                transitionState: Binding.constant(SlideOverTransitionState.collapsed),
+                percentTransition: Binding.constant(100),
                 tokens: DrawerTokens())
         }
     }

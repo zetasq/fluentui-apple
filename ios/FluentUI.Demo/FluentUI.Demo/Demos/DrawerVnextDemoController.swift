@@ -156,10 +156,11 @@ class DrawerVnextDemoController: DemoController, DrawerVnextControllerDelegate {
             return
         }
 
-        if view.effectiveUserInterfaceLayoutDirection == .leftToRight {
-            self.showRightDrawerDimmedBackgroundButtonTapped()
-        } else {
-            self.showLeftDrawerClearBackgroundButtonTapped()
+        if let drawerController = drawerController {
+            drawerController.state.backgroundDimmed = false
+            drawerController.state.presentingGesture = gesture
+            drawerController.state.presentationDirection = .right
+            present(drawerController, animated: true, completion: nil)
         }
     }
 }

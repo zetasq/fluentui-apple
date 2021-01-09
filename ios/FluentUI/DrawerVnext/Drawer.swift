@@ -37,6 +37,26 @@ public class DrawerState: NSObject, ObservableObject {
 
     /// anitmation duration when drawer is collapsed/expanded
     @objc public var animationDuration: Double = 0.0
+
+    @Published public var interactiveTranslation: CGPoint?
+
+    /// Set `presentingGesture` before calling `present` to provide a gesture recognizer that resulted in the presentation of the drawer and to allow this presentation to be interactive.
+    @Published public var presentingGesture: UIPanGestureRecognizer? {
+        didSet {
+            if presentingGesture == oldValue {
+                return
+            }
+            oldValue?.removeTarget(self, action: #selector(handlePresentingPan))
+            presentingGesture?.addTarget(self, action: #selector(handlePresentingPan))
+        }
+    }
+
+    @objc private func handlePresentingPan(gesture: UIPanGestureRecognizer) {
+        interactiveTranslation = gesture.translation(in: gesture.view)
+        if gesture.state == .ended {
+            interactiveTranslation = nil
+        }
+    }
 }
 
 // MARK: - Drawer Token
@@ -87,31 +107,32 @@ public class DrawerTokens: MSFTokensBase, ObservableObject {
 ///  Set `Content` to provide content for the drawer.
 public struct Drawer<Content: View>: View {
 
-    // content view on top of `Drawer`
+    /// content view on top of `Drawer`
     public var content: Content
 
     @Environment(\.theme) var theme: FluentUIStyle
 
-    // configure the behavior of drawer
+    /// configure the behavior of drawer
     @ObservedObject public var state = DrawerState()
 
-    // configure the apperance of drawer
+    /// configure the apperance of drawer
     @ObservedObject public var tokens = DrawerTokens()
 
-    // keep track of dragged offset
-    @State internal var horizontalDragOffset: CGFloat?
+    /// internal panel state
+    @State internal var panelTransitionState: SlideOverTransitionState = .collapsed
 
-    // internal drawer state
-    @State internal var isContentPresented: Bool = false
+    /// transition percent
+    @State internal var panelTransitionPercent: Double? = 0.0
 
-    private let gestureSnapWidthRatio: CGFloat = 0.225
+    /// threshold if exceeded the transition state is toggled
+    private let horizontalGestureThreshold: Double = 0.225
 
     public var body: some View {
         GeometryReader { proxy in
             SlideOverPanel(
                 content: content,
-                isOpen: $isContentPresented,
-                preferredContentOffset: $horizontalDragOffset,
+                transitionState: $panelTransitionState,
+                percentTransition: $panelTransitionPercent,
                 tokens: tokens)
                 .backgroundOpactiy(backgroundLayerOpacity)
                 .direction(slideOutDirection)
@@ -120,16 +141,27 @@ public struct Drawer<Content: View>: View {
                     state.isExpanded = false
                 }
                 .onReceive(state.$isExpanded, perform: { value in
-                    withAnimation(.easeInOut(duration: state.animationDuration)) {
-                        isContentPresented = value
-                        // drag ends
-                        horizontalDragOffset = nil
+                    withAnimation(defaultAnimation()) {
+                        if value {
+                            panelTransitionState = .expanded
+                        } else {
+                            panelTransitionState = .collapsed
+                        }
+                        panelTransitionPercent = nil
                     }
                 })
                 .onDisappear {
                     state.isExpanded = false
                 }
                 .gesture(dragGesture(screenWidth: sizeInCurrentOrientation(proxy).width))
+                .onReceive(state.$interactiveTranslation) { value in
+                    if let velocity = value?.x {
+                        let maxOffset = sizeInCurrentOrientation(proxy).width
+                        updateTransition(Double(abs (velocity / maxOffset)))
+                    } else {
+                        endTransition()
+                    }
+                }
         }
         .edgesIgnoringSafeArea(.all)
         .onAppear {
@@ -146,6 +178,10 @@ public struct Drawer<Content: View>: View {
         }
     }
 
+    private func defaultAnimation() -> Animation {
+        return Animation.easeInOut(duration: state.animationDuration)
+    }
+
     private var backgroundLayerOpacity: Double {
         return Double(state.backgroundDimmed ? tokens.backgroundDimmedOpacity : tokens.backgroundClearOpacity)
     }
@@ -157,20 +193,39 @@ public struct Drawer<Content: View>: View {
     private func dragGesture(screenWidth: CGFloat) -> some Gesture {
         DragGesture()
             .onChanged { value in
-                let withinDragBounds = state.presentationDirection == .left ? value.translation.width < 0 : value.translation.width > 0
-                if withinDragBounds {
-                    horizontalDragOffset = value.translation.width
-                }
+                let velocity = value.translation.width
+                updateTransition(Double(abs (velocity / screenWidth)), inverse: true)
             }
             .onEnded { _ in
-                if let horizontalDragOffset = horizontalDragOffset {
-                    if abs(horizontalDragOffset) < screenWidth * gestureSnapWidthRatio {
-                        state.isExpanded = true
-                    } else {
-                        state.isExpanded = false
-                    }
+                endTransition()
+            }
+    }
+
+    private func updateTransition(_ percent: Double, inverse: Bool = false) {
+        panelTransitionState = .inTransisiton
+        if percent > 0 && percent < 1 {
+            withAnimation(defaultAnimation()) {
+                if inverse {
+                    panelTransitionPercent = 1 - percent
+                } else {
+                    panelTransitionPercent = percent
                 }
             }
+        }
+    }
+
+    private func endTransition() {
+        withAnimation(defaultAnimation()) {
+            guard let percent = panelTransitionPercent else {
+                return
+            }
+            if percent <= horizontalGestureThreshold {
+                state.isExpanded = false
+            } else {
+                state.isExpanded = true
+            }
+            panelTransitionPercent = nil
+        }
     }
 
     /// Custom modifier for adding a callback placeholder when drawer's state is changed
@@ -181,8 +236,7 @@ public struct Drawer<Content: View>: View {
         drawerState.onStateChange = didChangeState
         return Drawer(content: content,
                       state: drawerState,
-                      tokens: tokens,
-                      horizontalDragOffset: horizontalDragOffset)
+                      tokens: tokens)
     }
 
     private func sizeInCurrentOrientation(_ proxy: GeometryProxy) -> CGSize {
