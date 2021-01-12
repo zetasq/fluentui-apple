@@ -122,19 +122,11 @@ public struct Drawer<Content: View>: View {
     @ObservedObject public var tokens = DrawerTokens()
 
     /// internal panel state
-    @State internal var panelTransitionState: SlideOverTransitionState = .collapsed {
-        didSet {
-            print("state set to \(panelTransitionState)")
-        }
-    }
+    @State internal var panelTransitionState: SlideOverTransitionState = .collapsed
 
     /// transition percent, whem set to max value the panel is expaned
     /// range [0,1]
-    @State internal var panelTransitionPercent: Double? = 0.0 {
-        didSet {
-            print("transition percent \(String(describing: panelTransitionPercent))")
-        }
-    }
+    @State internal var panelTransitionPercent: Double? = 0.0
 
     /// threshold if exceeded the transition state is toggled
     private let horizontalGestureThreshold: Double = 0.225
@@ -143,9 +135,9 @@ public struct Drawer<Content: View>: View {
         GeometryReader { proxy in
             SlideOverPanel(
                 content: content,
+                tokens: tokens,
                 transitionState: $panelTransitionState,
-                percentTransition: $panelTransitionPercent,
-                tokens: tokens)
+                percentTransition: $panelTransitionPercent)
                 .backgroundOpactiy(backgroundLayerOpacity)
                 .direction(slideOutDirection)
                 .width(sizeInCurrentOrientation(proxy).width)
@@ -235,7 +227,8 @@ public struct Drawer<Content: View>: View {
             return
         }
         let snapPercent = inverse ? 1 - percent : percent
-        if snapPercent < horizontalGestureThreshold {
+        let snapThreshold = inverse ? horizontalGestureThreshold : 1 - horizontalGestureThreshold
+        if snapPercent < snapThreshold {
             state.isExpanded = true
         } else {
             state.isExpanded = false

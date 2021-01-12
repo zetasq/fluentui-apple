@@ -156,9 +156,9 @@ struct SlideOverPanelLeft_Previews: PreviewProvider {
                 content: MockContent(),
                 backgroundLayerOpacity: 0.5,
                 direction: .left,
+                tokens: DrawerTokens(),
                 transitionState: Binding.constant(SlideOverTransitionState.expanded),
-                percentTransition: Binding.constant(0),
-                tokens: DrawerTokens())
+                percentTransition: Binding.constant(0))
         }
     }
 }
@@ -173,9 +173,9 @@ struct SlideOverPanelRight_Previews: PreviewProvider {
                 content: MockContent(),
                 backgroundLayerOpacity: 0.5,
                 direction: .right,
+                tokens: DrawerTokens(),
                 transitionState: Binding.constant(SlideOverTransitionState.expanded),
-                percentTransition: Binding.constant(0),
-                tokens: DrawerTokens())
+                percentTransition: Binding.constant(0))
         }
     }
 }
@@ -190,9 +190,9 @@ struct SlideOverPanelInTransition_Previews: PreviewProvider {
                 content: MockContent(),
                 backgroundLayerOpacity: 0.5,
                 direction: .left,
+                tokens: DrawerTokens(),
                 transitionState: Binding.constant(SlideOverTransitionState.inTransisiton),
-                percentTransition: Binding.constant(0.4),
-                tokens: DrawerTokens()))
+                percentTransition: Binding.constant(0.4))
         }
     }
 }
@@ -207,9 +207,9 @@ struct SlideOverPanelCollapsed_Previews: PreviewProvider {
                 content: MockContent(),
                 backgroundLayerOpacity: 0.5,
                 direction: .left,
+                tokens: DrawerTokens(),
                 transitionState: Binding.constant(SlideOverTransitionState.collapsed),
-                percentTransition: Binding.constant(100),
-                tokens: DrawerTokens())
+                percentTransition: Binding.constant(100))
         }
     }
 }
