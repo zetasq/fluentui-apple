@@ -23,9 +23,11 @@ public class DrawerState: NSObject, ObservableObject {
 
     /// Set `isExpanded` to `true` to maximize the drawer's width to fill the device screen horizontally minus the safe areas.
     /// Set to `false` to restore it to the normal size.
-    @objc @Published public var isExpanded: Bool = false {
+    @Published public var isExpanded: Bool? {
         didSet {
-            onStateChange?()
+            if isExpanded != oldValue {
+                onStateChange?()
+            }
         }
     }
 
@@ -38,10 +40,11 @@ public class DrawerState: NSObject, ObservableObject {
     /// anitmation duration when drawer is collapsed/expanded
     @objc public var animationDuration: Double = 0.0
 
-    @Published public var interactiveTranslation: CGPoint?
+    /// override this value to explicity set drag offset for the drawer
+    @Published public var translation: (state: UIGestureRecognizer.State, point: CGPoint)?
 
     /// Set `presentingGesture` before calling `present` to provide a gesture recognizer that resulted in the presentation of the drawer and to allow this presentation to be interactive.
-    @Published public var presentingGesture: UIPanGestureRecognizer? {
+    public var presentingGesture: UIPanGestureRecognizer? {
         didSet {
             if presentingGesture == oldValue {
                 return
@@ -52,9 +55,9 @@ public class DrawerState: NSObject, ObservableObject {
     }
 
     @objc private func handlePresentingPan(gesture: UIPanGestureRecognizer) {
-        interactiveTranslation = gesture.translation(in: gesture.view)
+        translation = (state: gesture.state, point: gesture.translation(in: gesture.view))
         if gesture.state == .ended {
-            interactiveTranslation = nil
+            translation = nil
         }
     }
 }
@@ -119,10 +122,19 @@ public struct Drawer<Content: View>: View {
     @ObservedObject public var tokens = DrawerTokens()
 
     /// internal panel state
-    @State internal var panelTransitionState: SlideOverTransitionState = .collapsed
+    @State internal var panelTransitionState: SlideOverTransitionState = .collapsed {
+        didSet {
+            print("state set to \(panelTransitionState)")
+        }
+    }
 
-    /// transition percent
-    @State internal var panelTransitionPercent: Double? = 0.0
+    /// transition percent, whem set to max value the panel is expaned
+    /// range [0,1]
+    @State internal var panelTransitionPercent: Double? = 0.0 {
+        didSet {
+            print("transition percent \(String(describing: panelTransitionPercent))")
+        }
+    }
 
     /// threshold if exceeded the transition state is toggled
     private let horizontalGestureThreshold: Double = 0.225
@@ -141,25 +153,33 @@ public struct Drawer<Content: View>: View {
                     state.isExpanded = false
                 }
                 .onReceive(state.$isExpanded, perform: { value in
+                    guard let value = value, state.translation == nil else {
+                        return
+                    }
+
                     withAnimation(defaultAnimation()) {
                         if value {
                             panelTransitionState = .expanded
                         } else {
                             panelTransitionState = .collapsed
                         }
-                        panelTransitionPercent = nil
                     }
+                    panelTransitionPercent = nil
                 })
                 .onDisappear {
                     state.isExpanded = false
                 }
                 .gesture(dragGesture(screenWidth: sizeInCurrentOrientation(proxy).width))
-                .onReceive(state.$interactiveTranslation) { value in
-                    if let velocity = value?.x {
-                        let maxOffset = sizeInCurrentOrientation(proxy).width
-                        updateTransition(Double(abs (velocity / maxOffset)))
-                    } else {
-                        endTransition()
+                .onReceive(state.$translation) { value in
+                    if let translation = value {
+                        switch translation.state {
+                        case .ended:
+                            endTransition()
+                        default:
+                            let maxOffset = sizeInCurrentOrientation(proxy).width
+                            let velocity = translation.point.x
+                            updateTransition(Double(abs (velocity / maxOffset)), isAnimated: true)
+                        }
                     }
                 }
         }
@@ -194,37 +214,31 @@ public struct Drawer<Content: View>: View {
         DragGesture()
             .onChanged { value in
                 let velocity = value.translation.width
-                updateTransition(Double(abs (velocity / screenWidth)), inverse: true)
+                updateTransition(Double(abs (velocity / screenWidth)), isAnimated: true, inverse: true)
             }
             .onEnded { _ in
-                endTransition()
+                endTransition(inverse: true)
             }
     }
 
-    private func updateTransition(_ percent: Double, inverse: Bool = false) {
+    private func updateTransition(_ percent: Double, isAnimated: Bool = false, inverse: Bool = false) {
         panelTransitionState = .inTransisiton
         if percent > 0 && percent < 1 {
-            withAnimation(defaultAnimation()) {
-                if inverse {
-                    panelTransitionPercent = 1 - percent
-                } else {
-                    panelTransitionPercent = percent
-                }
+            withAnimation(isAnimated ? defaultAnimation() : .none) {
+                panelTransitionPercent = inverse ? 1 - percent : percent
             }
         }
     }
 
-    private func endTransition() {
-        withAnimation(defaultAnimation()) {
-            guard let percent = panelTransitionPercent else {
-                return
-            }
-            if percent <= horizontalGestureThreshold {
-                state.isExpanded = false
-            } else {
-                state.isExpanded = true
-            }
-            panelTransitionPercent = nil
+    private func endTransition(inverse: Bool = false) {
+        guard let percent = panelTransitionPercent else {
+            return
+        }
+        let snapPercent = inverse ? 1 - percent : percent
+        if snapPercent < horizontalGestureThreshold {
+            state.isExpanded = true
+        } else {
+            state.isExpanded = false
         }
     }
 
@@ -267,7 +281,7 @@ struct DrawerPreview: View {
                 EmptyView()
                     .navigationBarTitle(Text("Drawer Background"))
                     .navigationBarItems(leading: Button(action: {
-                        drawer.state.isExpanded.toggle()
+                        drawer.state.isExpanded?.toggle()
                     }, label: {
                         Image(systemName: "sidebar.left")
                     })).background(Color.blue)

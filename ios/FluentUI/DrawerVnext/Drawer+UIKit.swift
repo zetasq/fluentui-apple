@@ -39,17 +39,12 @@ extension DrawerVnext: UIViewControllerTransitioningDelegate, UIViewControllerAn
             drawerView.frame = UIScreen.main.bounds
             DispatchQueue.main.asyncAfter(deadline: .now() + state.animationDuration) { [weak self] in
                 if let strongSelf = self {
-                    if strongSelf.state.presentingGesture != nil && isPresentingDrawer {
-                        /// defer state on gesture
-                        strongSelf.state.isExpanded = false
-                    } else {
-                        strongSelf.state.isExpanded = isPresentingDrawer
-                    }
+                    strongSelf.state.isExpanded = true
                 }
                 transitionContext.completeTransition(true)
             }
         } else {
-            self.state.isExpanded = isPresentingDrawer
+            self.state.isExpanded = false
             DispatchQueue.main.asyncAfter(deadline: .now() + state.animationDuration) {
                 drawerView.removeFromSuperview()
                 transitionContext.completeTransition(true)
@@ -122,8 +117,11 @@ open class DrawerVnext: UIHostingController<AnyView>, FluentUIWindowProvider {
     private func addDelegateNotification() {
         self.drawer = self.drawer.didChangeState({ [weak self] in
             if let strongSelf = self {
+                guard let isDrawerExpanded = strongSelf.drawer.state.isExpanded else {
+                    return
+                }
                 strongSelf.delegate?.drawerDidChangeState?(state: strongSelf.state, controller: strongSelf)
-                if !strongSelf.drawer.state.isExpanded {
+                if !isDrawerExpanded {
                     strongSelf.dismiss(animated: true, completion: nil)
                 }
             }
