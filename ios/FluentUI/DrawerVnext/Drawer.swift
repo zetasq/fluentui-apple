@@ -25,9 +25,7 @@ public class DrawerState: NSObject, ObservableObject {
     /// Set to `false` to restore it to the normal size.
     @Published public var isExpanded: Bool? {
         didSet {
-            if isExpanded != oldValue {
-                onStateChange?()
-            }
+            onStateChange?()
         }
     }
 
@@ -56,9 +54,6 @@ public class DrawerState: NSObject, ObservableObject {
 
     @objc private func handlePresentingPan(gesture: UIPanGestureRecognizer) {
         translation = (state: gesture.state, point: gesture.translation(in: gesture.view))
-        if gesture.state == .ended {
-            translation = nil
-        }
     }
 }
 
@@ -145,7 +140,7 @@ public struct Drawer<Content: View>: View {
                     state.isExpanded = false
                 }
                 .onReceive(state.$isExpanded, perform: { value in
-                    guard let value = value, state.translation == nil else {
+                    guard let value = value else {
                         return
                     }
 
@@ -156,7 +151,10 @@ public struct Drawer<Content: View>: View {
                             panelTransitionState = .collapsed
                         }
                     }
-                    panelTransitionPercent = nil
+                    if state.translation == nil || (state.translation?.state == .none) {
+                        // end pan gesture
+                        panelTransitionPercent = nil
+                    }
                 })
                 .onDisappear {
                     state.isExpanded = false
@@ -213,6 +211,7 @@ public struct Drawer<Content: View>: View {
             }
     }
 
+    /// default direction is in the direction of `DrawerPresentation`
     private func updateTransition(_ percent: Double, isAnimated: Bool = false, inverse: Bool = false) {
         panelTransitionState = .inTransisiton
         if percent > 0 && percent < 1 {
@@ -222,16 +221,17 @@ public struct Drawer<Content: View>: View {
         }
     }
 
+    /// default direction is in the direction of `DrawerPresentation`
     private func endTransition(inverse: Bool = false) {
         guard let percent = panelTransitionPercent else {
             return
         }
         let snapPercent = inverse ? 1 - percent : percent
-        let snapThreshold = inverse ? horizontalGestureThreshold : 1 - horizontalGestureThreshold
+        let snapThreshold = horizontalGestureThreshold
         if snapPercent < snapThreshold {
-            state.isExpanded = true
+            state.isExpanded = inverse
         } else {
-            state.isExpanded = false
+            state.isExpanded = !inverse
         }
     }
 
