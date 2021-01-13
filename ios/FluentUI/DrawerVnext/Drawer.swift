@@ -143,7 +143,6 @@ public struct Drawer<Content: View>: View {
                     guard let value = value else {
                         return
                     }
-
                     withAnimation(defaultAnimation()) {
                         if value {
                             panelTransitionState = .expanded
@@ -151,8 +150,8 @@ public struct Drawer<Content: View>: View {
                             panelTransitionState = .collapsed
                         }
                     }
-                    if state.translation == nil || (state.translation?.state == .none) {
-                        // end pan gesture
+                    if !isPresentationGestureActive() {
+                        // end drag
                         panelTransitionPercent = nil
                     }
                 })
@@ -168,7 +167,8 @@ public struct Drawer<Content: View>: View {
                         default:
                             let maxOffset = sizeInCurrentOrientation(proxy).width
                             let velocity = translation.point.x
-                            updateTransition(Double(abs (velocity / maxOffset)), isAnimated: true)
+                            let percent = Double(abs (velocity / maxOffset))
+                            updateTransition(percent, isAnimated: true)
                         }
                     }
                 }
@@ -186,6 +186,10 @@ public struct Drawer<Content: View>: View {
                 self.tokens.theme = theme
             }
         }
+    }
+
+    public func isPresentationGestureActive() -> Bool {
+        return state.presentingGesture != nil && (state.presentingGesture?.state == .none || state.presentingGesture?.state == .began)
     }
 
     private func defaultAnimation() -> Animation {
@@ -213,15 +217,15 @@ public struct Drawer<Content: View>: View {
 
     /// default direction is in the direction of `DrawerPresentation`
     private func updateTransition(_ percent: Double, isAnimated: Bool = false, inverse: Bool = false) {
-        panelTransitionState = .inTransisiton
-        if percent > 0 && percent < 1 {
+        if percent >= 0 && percent <= 1 {
             withAnimation(isAnimated ? defaultAnimation() : .none) {
+                panelTransitionState = .inTransisiton
                 panelTransitionPercent = inverse ? 1 - percent : percent
             }
         }
     }
 
-    /// default direction is in the direction of `DrawerPresentation`
+    /// default direction is in the direction of `DrawerPresentation`, inverse will reverse the default direction
     private func endTransition(inverse: Bool = false) {
         guard let percent = panelTransitionPercent else {
             return

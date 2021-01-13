@@ -39,9 +39,7 @@ extension DrawerVnext: UIViewControllerTransitioningDelegate, UIViewControllerAn
             drawerView.frame = UIScreen.main.bounds
             DispatchQueue.main.asyncAfter(deadline: .now() + state.animationDuration) { [weak self] in
                 if let strongSelf = self {
-                    if strongSelf.state.presentingGesture != nil && strongSelf.state.presentingGesture?.state == .none {
-                        strongSelf.drawer.panelTransitionState = .inTransisiton
-                    } else {
+                    if !strongSelf.drawer.isPresentationGestureActive() {
                         strongSelf.state.isExpanded = true
                     }
                 }
