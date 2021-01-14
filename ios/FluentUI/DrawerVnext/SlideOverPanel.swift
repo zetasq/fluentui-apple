@@ -56,7 +56,7 @@ struct SlideOverPanel<Content: View>: View {
     private var contentWidth: CGFloat {
         return slideOutPanelWidth * contentWidthSizeRatio
     }
-    
+
     private var resolvedContentOffset: CGFloat {
 
         var offset: CGFloat
@@ -74,6 +74,40 @@ struct SlideOverPanel<Content: View>: View {
         } else {
             return offset
         }
+    }
+
+    private var resolvedBackgroundOpacity: Double {
+        let clearBackgroundOpacity = 0.0
+        guard backgroundDimmed else {
+            return clearBackgroundOpacity
+        }
+
+        switch transitionState {
+        case .collapsed:
+            return clearBackgroundOpacity
+        case .expanded:
+            return tokens.backgroundDimmedOpacity
+        case .inTransisiton:
+            if let percent = percentTransition {
+                return tokens.backgroundDimmedOpacity * percent
+            }
+        }
+        return 0
+    }
+
+    private var resolvedShadowOpacity: Double {
+        let clearShadowOpacity = 0.0
+        switch transitionState {
+        case .collapsed:
+            return clearShadowOpacity
+        case .expanded:
+            return tokens.shadowOpacity
+        case .inTransisiton:
+            if let percent = percentTransition {
+                return tokens.shadowOpacity * percent
+            }
+        }
+        return 0
     }
 
     private var percentTransistionOffset: CGFloat {
@@ -95,7 +129,7 @@ struct SlideOverPanel<Content: View>: View {
         return slideOutPanelWidth * contentWidthSizeRatio
     }
 
-    public var body: some View {
+    var body: some View {
         HStack {
             if direction == .right {
                 InteractiveSpacer(defaultBackgroundColor: $tokens.backgroundClearColor)
@@ -104,7 +138,7 @@ struct SlideOverPanel<Content: View>: View {
 
             content
                 .frame(width: contentWidth)
-                .shadow(color: tokens.shadowColor.opacity(resolveTransitionOpacity(tokens.shadowOpacity)),
+                .shadow(color: tokens.shadowColor.opacity(resolvedShadowOpacity),
                         radius: tokens.shadowBlur,
                         x: tokens.shadowDepthX,
                         y: tokens.shadowDepthY)
@@ -115,26 +149,7 @@ struct SlideOverPanel<Content: View>: View {
                     .onTapGesture (perform: actionOnBackgroundTap ?? {})
             }
         }
-        .background(transitionState == .collapsed ? tokens.backgroundClearColor : tokens.backgroundDimmedColor.opacity(resolveTransitionOpacity(tokens.backgroundDimmedOpacity)))
-    }
-
-    private func resolveTransitionOpacity(_ maxValue: Double) -> Double {
-        let clearBackgroundOpacity = 0.0
-        guard backgroundDimmed else {
-            return clearBackgroundOpacity
-        }
-
-        switch transitionState {
-        case .collapsed:
-            return clearBackgroundOpacity
-        case .expanded:
-            return maxValue
-        case .inTransisiton:
-            if let percent = percentTransition {
-                return maxValue * percent
-            }
-        }
-        return 0
+        .background(transitionState == .collapsed ? tokens.backgroundClearColor : tokens.backgroundDimmedColor.opacity(resolvedBackgroundOpacity))
     }
 }
 

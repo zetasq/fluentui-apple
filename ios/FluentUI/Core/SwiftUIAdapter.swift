@@ -6,7 +6,7 @@
 import UIKit
 import SwiftUI
 
-public struct SwiftUIAdapter {
+public enum SwiftUIAdapter {
 
     /// This is a generic UIView wrapper to allow SwiftUI to use views from non-SwiftUI environments.
     public struct UIViewAdapter: UIViewRepresentable {
