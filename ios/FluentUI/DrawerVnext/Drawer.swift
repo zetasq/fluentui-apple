@@ -35,10 +35,10 @@ public class DrawerState: NSObject, ObservableObject {
     /// If set to `false` it restores to `clear` color
     @objc @Published public var backgroundDimmed: Bool = false
 
-    /// anitmation duration when drawer is collapsed/expanded
+    /// Anitmation duration when drawer is collapsed/expanded
     @objc public var animationDuration: Double = 0.0
 
-    /// override this value to explicity set drag offset for the drawer
+    /// Override this value to explicity set drag offset for the drawer
     @Published public var translation: (state: UIGestureRecognizer.State, point: CGPoint)?
 
     /// Set `presentingGesture` before calling `present` to provide a gesture recognizer that resulted in the presentation of the drawer and to allow this presentation to be interactive.
@@ -69,8 +69,8 @@ public class DrawerTokens: MSFTokensBase, ObservableObject {
     @Published public var shadowDepthY: CGFloat!
     @Published public var backgroundDimmedColor: Color!
     @Published public var backgroundClearColor: Color!
-    @Published public var backgroundDimmedOpacity: CGFloat!
-    @Published public var backgroundClearOpacity: CGFloat!
+    @Published public var backgroundDimmedOpacity: Double!
+    @Published public var backgroundClearOpacity: Double!
 
     public override init() {
         super.init()
@@ -93,8 +93,8 @@ public class DrawerTokens: MSFTokensBase, ObservableObject {
         shadowDepthY = appearanceProxy.shadowY
         backgroundClearColor = Color(appearanceProxy.backgroundClearColor)
         backgroundDimmedColor = Color(appearanceProxy.backgroundDimmedColor)
-        backgroundDimmedOpacity = appearanceProxy.backgroundDimmedOpacity
-        backgroundClearOpacity = appearanceProxy.backgroundClearOpacity
+        backgroundDimmedOpacity = Double(appearanceProxy.backgroundDimmedOpacity)
+        backgroundClearOpacity = Double(appearanceProxy.backgroundClearOpacity)
     }
 }
 
@@ -105,26 +105,40 @@ public class DrawerTokens: MSFTokensBase, ObservableObject {
 ///  Set `Content` to provide content for the drawer.
 public struct Drawer<Content: View>: View {
 
-    /// content view on top of `Drawer`
+    /// Content view on top of `Drawer`
     public var content: Content
 
     @Environment(\.theme) var theme: FluentUIStyle
 
-    /// configure the behavior of drawer
+    /// Configure the behavior of drawer
     @ObservedObject public var state = DrawerState()
 
-    /// configure the apperance of drawer
+    /// Configure the apperance of drawer
     @ObservedObject public var tokens = DrawerTokens()
 
-    /// internal panel state
+    /// Flag is set when pangesture is started
+    public var isPresentationGestureActive: Bool {
+        guard let gesture = state.presentingGesture else {
+            return false
+        }
+
+        let state = gesture.state
+        return state == .none || state == .began
+    }
+
+    /// Internal panel state
     @State internal var panelTransitionState: SlideOverTransitionState = .collapsed
 
-    /// transition percent, whem set to max value the panel is expaned
-    /// range [0,1]
+    /// Transition percent, whem set to max value the panel is expaned
+    /// Range [0,1]
     @State internal var panelTransitionPercent: Double? = 0.0
 
-    /// threshold if exceeded the transition state is toggled
+    /// Threshold if exceeded the transition state is toggled
     private let horizontalGestureThreshold: Double = 0.225
+
+    private var presentationAnimation: Animation {
+        return Animation.easeInOut(duration: state.animationDuration)
+    }
 
     public var body: some View {
         GeometryReader { proxy in
@@ -133,7 +147,7 @@ public struct Drawer<Content: View>: View {
                 tokens: tokens,
                 transitionState: $panelTransitionState,
                 percentTransition: $panelTransitionPercent)
-                .backgroundOpactiy(backgroundLayerOpacity)
+                .isBackgroundDimmed(state.backgroundDimmed)
                 .direction(slideOutDirection)
                 .width(sizeInCurrentOrientation(proxy).width)
                 .performOnBackgroundTap {
@@ -143,14 +157,14 @@ public struct Drawer<Content: View>: View {
                     guard let value = value else {
                         return
                     }
-                    withAnimation(defaultAnimation()) {
+                    withAnimation(presentationAnimation) {
                         if value {
                             panelTransitionState = .expanded
                         } else {
                             panelTransitionState = .collapsed
                         }
                     }
-                    if !isPresentationGestureActive() {
+                    if !isPresentationGestureActive {
                         // end drag
                         panelTransitionPercent = nil
                     }
@@ -188,18 +202,6 @@ public struct Drawer<Content: View>: View {
         }
     }
 
-    public func isPresentationGestureActive() -> Bool {
-        return state.presentingGesture != nil && (state.presentingGesture?.state == .none || state.presentingGesture?.state == .began)
-    }
-
-    private func defaultAnimation() -> Animation {
-        return Animation.easeInOut(duration: state.animationDuration)
-    }
-
-    private var backgroundLayerOpacity: Double {
-        return Double(state.backgroundDimmed ? tokens.backgroundDimmedOpacity : tokens.backgroundClearOpacity)
-    }
-
     private var slideOutDirection: SlideOverDirection {
         return state.presentationDirection == .left ? .left : .right
     }
@@ -207,25 +209,32 @@ public struct Drawer<Content: View>: View {
     private func dragGesture(screenWidth: CGFloat) -> some Gesture {
         DragGesture()
             .onChanged { value in
+                let delta = value.startLocation.x - value.location.x
+                let isDragInReverseDirection = slideOutDirection == .right && delta > 0 ||
+                     slideOutDirection == .left && delta < 0
+                guard !isDragInReverseDirection else {
+                    return
+                }
+
                 let velocity = value.translation.width
-                updateTransition(Double(abs (velocity / screenWidth)), isAnimated: true, inverse: true)
+                updateTransition(Double(abs (velocity / screenWidth)), isAnimated: true, reverseDirection: true)
             }
             .onEnded { _ in
                 endTransition(inverse: true)
             }
     }
 
-    /// default direction is in the direction of `DrawerPresentation`
-    private func updateTransition(_ percent: Double, isAnimated: Bool = false, inverse: Bool = false) {
+    /// Default direction is in the direction of `DrawerPresentation`
+    private func updateTransition(_ percent: Double, isAnimated: Bool = false, reverseDirection: Bool = false) {
         if percent >= 0 && percent <= 1 {
-            withAnimation(isAnimated ? defaultAnimation() : .none) {
+            withAnimation(isAnimated ? presentationAnimation : .none) {
                 panelTransitionState = .inTransisiton
-                panelTransitionPercent = inverse ? 1 - percent : percent
+                panelTransitionPercent = reverseDirection ? 1 - percent : percent
             }
         }
     }
 
-    /// default direction is in the direction of `DrawerPresentation`, inverse will reverse the default direction
+    /// Default direction is in the direction of `DrawerPresentation`, inverse will reverse the default direction
     private func endTransition(inverse: Bool = false) {
         guard let percent = panelTransitionPercent else {
             return

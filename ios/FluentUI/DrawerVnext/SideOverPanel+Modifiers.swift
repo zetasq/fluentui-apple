@@ -13,7 +13,7 @@ extension SlideOverPanel {
         return SlideOverPanel(slideOutPanelWidth: width,
                               actionOnBackgroundTap: actionOnBackgroundTap,
                               content: content,
-                              backgroundLayerOpacity: backgroundLayerOpacity,
+                              backgroundDimmed: backgroundDimmed,
                               direction: direction,
                               tokens: tokens,
                               transitionState: $transitionState,
@@ -27,7 +27,7 @@ extension SlideOverPanel {
         return SlideOverPanel(slideOutPanelWidth: slideOutPanelWidth,
                               actionOnBackgroundTap: actionOnBackgroundTap,
                               content: drawerContent,
-                              backgroundLayerOpacity: backgroundLayerOpacity,
+                              backgroundDimmed: backgroundDimmed,
                               direction: direction,
                               tokens: tokens,
                               transitionState: $transitionState,
@@ -41,7 +41,7 @@ extension SlideOverPanel {
         return SlideOverPanel(slideOutPanelWidth: slideOutPanelWidth,
                               actionOnBackgroundTap: performOnBackgroundTap,
                               content: content,
-                              backgroundLayerOpacity: backgroundLayerOpacity,
+                              backgroundDimmed: backgroundDimmed,
                               direction: direction,
                               tokens: tokens,
                               transitionState: $transitionState,
@@ -51,11 +51,11 @@ extension SlideOverPanel {
     /// Add opacity to background view
     /// - Parameter `opacity`: defaults to clear with no opacity
     /// - Returns: `SlideOverPanel`
-    func backgroundOpactiy(_ opacity: Double) -> SlideOverPanel {
+    func isBackgroundDimmed(_ value: Bool) -> SlideOverPanel {
         return SlideOverPanel(slideOutPanelWidth: slideOutPanelWidth,
                               actionOnBackgroundTap: actionOnBackgroundTap,
                               content: content,
-                              backgroundLayerOpacity: opacity,
+                              backgroundDimmed: value,
                               direction: direction,
                               tokens: tokens,
                               transitionState: $transitionState,
@@ -69,7 +69,7 @@ extension SlideOverPanel {
         return SlideOverPanel(slideOutPanelWidth: slideOutPanelWidth,
                               actionOnBackgroundTap: actionOnBackgroundTap,
                               content: content,
-                              backgroundLayerOpacity: backgroundLayerOpacity,
+                              backgroundDimmed: backgroundDimmed,
                               direction: slideOutDirection,
                               tokens: tokens,
                               transitionState: $transitionState,

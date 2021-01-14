@@ -226,7 +226,7 @@ extension MSFListView {
             Button(action: cell.onTapAction ?? {}, label: {
                 HStack(spacing: 0) {
                     if let leadingView = cell.leadingView {
-                        UIViewAdapter(leadingView)
+                        SwiftUIAdapter.UIViewAdapter(leadingView)
                             .frame(width: tokens.iconSize, height: tokens.iconSize)
                             .padding(.trailing, tokens.iconInterspace)
                     }

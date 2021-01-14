@@ -159,7 +159,7 @@ class DrawerVnextDemoController: DemoController, DrawerVnextControllerDelegate {
         let isLeadingEdgeLeftToRight = view.effectiveUserInterfaceLayoutDirection == .leftToRight
 
         if let drawerController = drawerController {
-            drawerController.state.backgroundDimmed = false
+            drawerController.state.backgroundDimmed = true
             drawerController.state.presentingGesture = gesture
             drawerController.state.presentationDirection = isLeadingEdgeLeftToRight ? .right : .left
             present(drawerController, animated: true, completion: nil)

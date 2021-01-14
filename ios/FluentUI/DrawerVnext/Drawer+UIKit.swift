@@ -33,13 +33,13 @@ extension DrawerVnext: UIViewControllerTransitioningDelegate, UIViewControllerAn
 
         state.animationDuration = transitionDuration(using: transitionContext)
 
-        // delegate animation to swiftui by changing state
+        // Delegate animation to swiftui by changing state
         if isPresentingDrawer {
             transitionContext.containerView.addSubview(drawerView)
             drawerView.frame = UIScreen.main.bounds
             DispatchQueue.main.asyncAfter(deadline: .now() + state.animationDuration) { [weak self] in
                 if let strongSelf = self {
-                    if !strongSelf.drawer.isPresentationGestureActive() {
+                    if !strongSelf.drawer.isPresentationGestureActive {
                         strongSelf.state.isExpanded = true
                     }
                 }
@@ -79,11 +79,11 @@ open class DrawerVnext: UIHostingController<AnyView>, FluentUIWindowProvider {
         return self.view.window
     }
 
-    /// set this delegate to recieve updates when drawer's state changes
+    /// Set this delegate to recieve updates when drawer's state changes
     /// @see `DrawerVnextControllerDelegate`
     public weak var delegate: DrawerVnextControllerDelegate?
 
-    /// Drawer state, use this to mutate or update drawer functionality
+    /// Represents the drawer's state with properties to configure its behavior.
     /// @see `DrawerState`
     @objc open var state: DrawerState {
         return self.drawer.state
@@ -91,7 +91,7 @@ open class DrawerVnext: UIHostingController<AnyView>, FluentUIWindowProvider {
 
     @objc public init(contentViewController: UIViewController,
                       theme: FluentUIStyle? = nil) {
-        let drawer = Drawer(content: DrawerContentViewController(contentViewController: contentViewController))
+        let drawer = Drawer(content: SwiftUIAdapter.UIViewControllerAdapter(contentViewController))
         self.drawer = drawer
         super.init(rootView: theme != nil ? AnyView(drawer.usingTheme(theme!)) : AnyView(drawer))
 
@@ -109,12 +109,12 @@ open class DrawerVnext: UIHostingController<AnyView>, FluentUIWindowProvider {
     }
 
     @objc required dynamic public init?(coder aDecoder: NSCoder) {
-        let drawer = Drawer(content: DrawerContentViewController(contentViewController: UIViewController()))
+        let drawer = Drawer(content: SwiftUIAdapter.UIViewControllerAdapter(UIViewController()))
         self.drawer = drawer
         super.init(coder: aDecoder)
     }
 
-    private var drawer: Drawer<DrawerContentViewController>
+    private var drawer: Drawer<SwiftUIAdapter.UIViewControllerAdapter>
 
     private func addDelegateNotification() {
         self.drawer = self.drawer.didChangeState({ [weak self] in
@@ -129,22 +129,4 @@ open class DrawerVnext: UIHostingController<AnyView>, FluentUIWindowProvider {
             }
         })
     }
-}
-
-/// `DrawerContentViewController` is SwiftUI wrapper classes that embeds a UIViewController used to host UIKit content as a SwiftUI componenet
-public struct DrawerContentViewController: UIViewControllerRepresentable {
-
-    private var contentView: UIViewController
-
-    init(contentViewController: UIViewController) {
-        self.contentView = contentViewController
-    }
-
-    public func makeUIViewController(context: Context) -> UIViewController {
-        return contentView
-    }
-
-    public func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
-
-    public typealias UIViewControllerType = UIViewController
 }
